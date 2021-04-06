@@ -1,5 +1,5 @@
 import sqlite3
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, make_response
 
 app = Flask(__name__)
 
@@ -10,7 +10,6 @@ user_database = [
 
 limit_failed_attpemts = {}
 
-ACCESS_DENIED = 'ACCESS DENIED'
 
 
 @app.route('/enter/')
@@ -19,7 +18,8 @@ def enter(name=None):
 
 @app.route('/login', methods=['POST'])
 def login():
-    response = ACCESS_DENIED
+    ACCESS_DENIED = make_response(render_template('not_allowed.html'))
+    resp = ACCESS_DENIED
 
     if request.remote_addr in limit_failed_attpemts and limit_failed_attpemts[request.remote_addr] > 3:
         print('possible brute force detected')
@@ -27,6 +27,7 @@ def login():
         if request.user_agent.string.startswith('Mozilla'):
             username = request.form.get('username')
             password = request.form.get('password')
+            chkbox = request.form.get('chkbox')
             with sqlite3.connect('users.db') as con:
                 cur = con.cursor()
                 cur.execute(f"select count(1) from users where username = '{username}' and password = '{password}'")
@@ -35,7 +36,12 @@ def login():
                 if count > 0:
                     cur.execute(f"select favorite_number from users where username = '{username}'")
                     favorite_number = cur.fetchone()[0]
-                    response = f'Hello {username}\n your favorite number is {favorite_number}'
+                    resp = make_response(render_template('loggedin_user.html', username=username, favorite_number=favorite_number))
+                    
+                    if chkbox == 'on':
+                        resp.set_cookie('SSO', value='1')
+                    
+                    # response = f'Hello {username}, your favorite number is {favorite_number}'
             # for user in user_database:
             #     if username == user['username'] and password == user['password']:
             #         response = f'Hello {username}'
@@ -43,13 +49,13 @@ def login():
         else:
             print('not supported browser ')
 
-        if response == ACCESS_DENIED:
+        if resp == ACCESS_DENIED:
             if request.remote_addr in limit_failed_attpemts:
                 limit_failed_attpemts[request.remote_addr] += 1
             else:
                 limit_failed_attpemts[request.remote_addr] = 1
 
-    return response
+    return resp
 
 
 @app.route('/')
