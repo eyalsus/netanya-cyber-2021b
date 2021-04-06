@@ -10,10 +10,12 @@ user_database = [
 
 limit_failed_attpemts = {}
 
-
-
 @app.route('/enter/')
 def enter(name=None):
+    sso_username = request.cookies.get('SSO')
+    if sso_username:
+        favorite_number = request.cookies.get('favorite_number')
+        return render_template('loggedin_user.html', username=sso_username, favorite_number=favorite_number)
     return render_template('login.html', name=name)
 
 @app.route('/login', methods=['POST'])
@@ -30,16 +32,20 @@ def login():
             chkbox = request.form.get('chkbox')
             with sqlite3.connect('users.db') as con:
                 cur = con.cursor()
-                cur.execute(f"select count(1) from users where username = '{username}' and password = '{password}'")
+                # cur.execute(f"select count(1) from users where username = '{username}' and password = '{password}'")
+                t = (username, password)
+                print(f'username: {username}, password: {password}')
+                cur.execute(f"select count(1) from users where username = ? and password = ?", t)
                 count = cur.fetchone()[0]
-                print(count)
+                print(f'matching users found: {count}')
                 if count > 0:
                     cur.execute(f"select favorite_number from users where username = '{username}'")
                     favorite_number = cur.fetchone()[0]
                     resp = make_response(render_template('loggedin_user.html', username=username, favorite_number=favorite_number))
                     
                     if chkbox == 'on':
-                        resp.set_cookie('SSO', value='1')
+                        resp.set_cookie('SSO', value=username, max_age=3600)
+                        resp.set_cookie('favorite_number', value=str(favorite_number), max_age=3600)
                     
                     # response = f'Hello {username}, your favorite number is {favorite_number}'
             # for user in user_database:
