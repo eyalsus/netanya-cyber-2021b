@@ -25,7 +25,7 @@ def login():
 
     if request.remote_addr in limit_failed_attpemts and limit_failed_attpemts[request.remote_addr] > 3:
         print('possible brute force detected')
-    elif request.referrer != 'http://mybank.com/enter/':
+    elif not (request.referrer.startswith('http://mybank.com/enter') or request.referrer.startswith('https://mybank.com/enter')):
         print('possible CSRF attack')
     else:
         if request.user_agent.string.startswith('Mozilla'):
